@@ -11,4 +11,18 @@ def test_winsorizer(lower_quantile, upper_quantile):
 
     X = np.random.normal(0, 1, 1000)
 
-    assert False
+    winsoriser = Winsorizer(lower_quantile, upper_quantile)
+    winsoriser.fit(X)
+
+    lq = winsoriser.lower_quantile_
+    uq = winsoriser.upper_quantile_
+    assert lq is not None
+    assert uq is not None
+    # Make sure there are some entries on, or outside bounds before transformation
+    assert any(X >= uq)
+    assert any(X <= lq)
+
+    X_transformed = winsoriser.transform(X)
+    # Make sure there are no entries outside bounds after transformation
+    assert not all(X_transformed > uq)
+    assert not all(X_transformed < lq)
