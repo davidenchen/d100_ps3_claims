@@ -23,10 +23,13 @@ weight = df["Exposure"].values
 df["PurePremium"] = df["ClaimAmountCut"] / df["Exposure"]
 y = df["PurePremium"]
 # TODO: Why do you think, we divide by exposure here to arrive at our outcome variable?
-
+# Exposure: The unit length the insurance company is exposed to a person for
+# Claim Amount: How much they claimed from the insurance company
+# Hence Pure Premium gives a measure of claim amount per unit of time the policy was active
+# This makes the claim amounts comparable for policies of different lengths
 
 # TODO: use your create_sample_split function here
-# df = create_sample_split(...)
+df = create_sample_split(df, "IDpol")
 train = np.where(df["sample"] == "train")
 test = np.where(df["sample"] == "test")
 df_train = df.iloc[train].copy()
@@ -89,13 +92,17 @@ numeric_cols = ["BonusMalus", "Density"]
 preprocessor = ColumnTransformer(
     transformers=[
         # TODO: Add numeric transforms here
+        ("scaler", StandardScaler(), numeric_cols),
+        ("splines", SplineTransformer(knots="quantile"), numeric_cols),
         ("cat", OneHotEncoder(sparse_output=False, drop="first"), categoricals),
     ]
 )
 preprocessor.set_output(transform="pandas")
-model_pipeline = Pipeline(
+model_pipeline = Pipeline(steps=[
     # TODO: Define pipeline steps here
-)
+    ('preprocessor', preprocessor),
+    ('regressor', t_glm1)
+])
 
 # let's have a look at the pipeline
 model_pipeline
@@ -103,7 +110,7 @@ model_pipeline
 # let's check that the transforms worked
 model_pipeline[:-1].fit_transform(df_train)
 
-model_pipeline.fit(df_train, y_train_t, estimate__sample_weight=w_train_t)
+model_pipeline.fit(df_train, y_train_t, regressor__sample_weight=w_train_t)
 
 pd.DataFrame(
     {
@@ -144,7 +151,22 @@ print(
 # 1: Define the modelling pipeline. Tip: This can simply be a LGBMRegressor based on X_train_t from before.
 # 2. Make sure we are choosing the correct objective for our estimator.
 
-model_pipeline.fit(X_train_t, y_train_t, estimate__sample_weight=w_train_t)
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("scaler", StandardScaler(), numeric_cols),
+        ("splines", SplineTransformer(knots="quantile"), numeric_cols),
+        ("cat", OneHotEncoder(sparse_output=False, drop="first"), categoricals),
+    ]
+)
+preprocessor.set_output(transform="pandas")
+
+lgb = LGBMRegressor(objective='tweedie')
+model_pipeline = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('regressor', lgb)
+])
+
+model_pipeline.fit(X_train_t, y_train_t, regressor__sample_weight=w_train_t)
 df_test["pp_t_lgbm"] = model_pipeline.predict(X_test_t)
 df_train["pp_t_lgbm"] = model_pipeline.predict(X_train_t)
 print(
@@ -170,10 +192,13 @@ print(
 # Note: Typically we tune many more parameters and larger grids,
 # but to save compute time here, we focus on getting the learning rate
 # and the number of estimators somewhat aligned -> tune learning_rate and n_estimators
-cv = GridSearchCV(
+param_grid = {
+    'regressor__learning_rate': [0.01, 0.02, 0.05, 0.1, 0.2],
+    'regressor__n_estimators': [100, 200, 300]
+}
 
-)
-cv.fit(X_train_t, y_train_t, estimate__sample_weight=w_train_t)
+cv = GridSearchCV(model_pipeline, param_grid, cv = 5)
+cv.fit(X_train_t, y_train_t, regressor__sample_weight=w_train_t)
 
 df_test["pp_t_lgbm"] = cv.best_estimator_.predict(X_test_t)
 df_train["pp_t_lgbm"] = cv.best_estimator_.predict(X_train_t)

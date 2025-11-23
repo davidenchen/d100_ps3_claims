@@ -18,7 +18,7 @@ def test_winsorizer(lower_quantile, upper_quantile):
     uq = winsoriser.upper_quantile_
     assert lq is not None
     assert uq is not None
-    # Make sure there are some entries on, or outside bounds before transformation
+    # Make sure there are some entries outside (or on) the bounds before transformation
     assert any(X >= uq)
     assert any(X <= lq)
 
