@@ -193,8 +193,8 @@ print(
 # but to save compute time here, we focus on getting the learning rate
 # and the number of estimators somewhat aligned -> tune learning_rate and n_estimators
 param_grid = {
-    'regressor__learning_rate': [0.01, 0.02, 0.05, 0.1, 0.2],
-    'regressor__n_estimators': [100, 200, 300]
+    'regressor__learning_rate': [0.01, 0.05, 0.1],
+    'regressor__n_estimators': [50, 100, 150]
 }
 
 cv = GridSearchCV(model_pipeline, param_grid, cv = 5)
