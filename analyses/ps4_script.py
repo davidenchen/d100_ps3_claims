@@ -8,9 +8,9 @@ from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.metrics import make_scorer
 
 from ps3.data import create_sample_split, load_transform
+from ps3.evaluation import evaluate_metrics
 
 # %%
 # Load and prepare data
@@ -96,7 +96,7 @@ TweedieDist = TweedieDistribution(1.5)
 # Run cross-validation to find the best learning rate and number of estimators
 param_grid = {
     'regressor__learning_rate': [0.05, 0.1, 0.2],
-    'regressor__n_estimators': [50, 100, 150]
+    'regressor__n_estimators': [100, 150, 200]
 }
 
 cv = GridSearchCV(
@@ -165,3 +165,32 @@ plt.show()
 
 # The graph shows test loss decreasing until a plateau and not increasing,
 # suggesting that no overfitting is happening
+
+
+# %%
+# Exercise 3
+# Run the unconstrained lgbm model again
+best_params = cv.best_params_
+model_pipeline = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('regressor', constrained_lgb)
+])
+model_pipeline.set_params(**best_params)
+model_pipeline.set_params(regressor__monotone_constraints = '')
+
+model_pipeline.fit(X_train_t, y_train_t, regressor__sample_weight=w_train_t)
+
+df_test["pp_t_lgbm"] = model_pipeline.predict(X_test_t)
+df_train["pp_t_lgbm"] = model_pipeline.predict(X_train_t)
+
+#%%
+# Evaluate predictions
+df1 = evaluate_metrics(y_train_t, df_train["pp_t_lgbm_constrained"], w_train_t)
+df2 = evaluate_metrics(y_train_t, df_train["pp_t_lgbm"], w_train_t)
+df_metrics = pd.concat([df1, df2], axis=1)
+df_metrics.columns = ["LGBM Constrained", "LGBM Unconstrained"]
+df_metrics
+
+# The unconstrained LGBM model performs better than the constrained one
+# These were set to have the same other hyperparameters
+
