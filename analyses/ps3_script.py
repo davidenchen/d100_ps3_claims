@@ -189,13 +189,34 @@ print(
 # 1. Define a `GridSearchCV` object with our lgbm pipeline/estimator. Tip: Parameters for a specific step of the pipeline
 # can be passed by <step_name>__param. 
 
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("scaler", StandardScaler(), numeric_cols),
+        ("cat", OneHotEncoder(sparse_output=False, drop="first"), categoricals),
+    ]
+)
+preprocessor.set_output(transform="pandas")
+
+lgb = LGBMRegressor(objective='tweedie')
+model_pipeline = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('regressor', lgb)
+])
+
 # Note: Typically we tune many more parameters and larger grids,
 # but to save compute time here, we focus on getting the learning rate
 # and the number of estimators somewhat aligned -> tune learning_rate and n_estimators
+
 param_grid = {
     'regressor__learning_rate': [0.01, 0.05, 0.1],
     'regressor__n_estimators': [50, 100, 150]
 }
+
+# Best parameters tested
+# param_grid = {
+#     'regressor__learning_rate': [0.01],
+#     'regressor__n_estimators': [50]
+# }
 
 cv = GridSearchCV(model_pipeline, param_grid, cv = 5)
 cv.fit(X_train_t, y_train_t, regressor__sample_weight=w_train_t)
@@ -274,4 +295,3 @@ ax.set(
 ax.legend(loc="upper left")
 plt.plot()
 
-# %%
