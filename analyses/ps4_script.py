@@ -227,6 +227,4 @@ pd_unconstr.plot()
 
 # Use SHAP to explain the prediction of a given observation
 constr_exp.predict_parts(X_test_transformed.iloc[0], type='shap')
-
-#%%
 unconstr_exp.predict_parts(X_test_transformed.iloc[0], type='shap')
