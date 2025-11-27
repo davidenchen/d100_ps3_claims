@@ -8,6 +8,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+import dalex as dx
 
 from ps3.data import create_sample_split, load_transform
 from ps3.evaluation import evaluate_metrics
@@ -170,18 +171,23 @@ plt.show()
 # %%
 # Exercise 3
 # Run the unconstrained lgbm model again
+
+unconstrained_lgb = LGBMRegressor(
+    objective='tweedie',
+    tweedie_variance_power = 1.5
+)
 best_params = cv.best_params_
-model_pipeline = Pipeline(steps=[
+new_model_pipeline = Pipeline(steps=[
     ('preprocessor', preprocessor),
-    ('regressor', constrained_lgb)
+    ('regressor', unconstrained_lgb)
 ])
-model_pipeline.set_params(**best_params)
-model_pipeline.set_params(regressor__monotone_constraints = '')
+new_model_pipeline.set_params(**best_params)
+new_model_pipeline.set_params(regressor__monotone_constraints = '')
 
-model_pipeline.fit(X_train_t, y_train_t, regressor__sample_weight=w_train_t)
+new_model_pipeline.fit(X_train_t, y_train_t, regressor__sample_weight=w_train_t)
 
-df_test["pp_t_lgbm"] = model_pipeline.predict(X_test_t)
-df_train["pp_t_lgbm"] = model_pipeline.predict(X_train_t)
+df_test["pp_t_lgbm"] = new_model_pipeline.predict(X_test_t)
+df_train["pp_t_lgbm"] = new_model_pipeline.predict(X_train_t)
 
 #%%
 # Evaluate predictions
@@ -194,3 +200,33 @@ df_metrics
 # The unconstrained LGBM model performs better than the constrained one
 # These were set to have the same other hyperparameters
 
+#%%
+# Exercise 4
+# Initialise explainer objects
+constrained_regressor = model_pipeline.named_steps['regressor']
+constr_exp = dx.Explainer(regressor, X_train_transformed, y_train_t, label = "Constrained LGB")
+
+unconstrained_regressor = new_model_pipeline.named_steps['regressor']
+unconstr_exp = dx.Explainer(regressor, X_train_transformed, y_train_t, label = "Unconstrained LGB")
+
+# %%
+# Calculate partial dependence profiles
+
+# For the constrained model
+pd_constr = constr_exp.model_profile(variables = ['scaler__BonusMalus', 'scaler__Density'])
+pd_constr.plot()
+
+# Do the same for the unconstrained model
+pd_unconstr = unconstr_exp.model_profile(variables = ['scaler__BonusMalus', 'scaler__Density'])
+pd_unconstr.plot()
+
+# Both models have a very similar shape of partial dependence
+
+#%%
+# Exercise 5
+
+# Use SHAP to explain the prediction of a given observation
+constr_exp.predict_parts(X_test_transformed.iloc[0], type='shap')
+
+#%%
+unconstr_exp.predict_parts(X_test_transformed.iloc[0], type='shap')
