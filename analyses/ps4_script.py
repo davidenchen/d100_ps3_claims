@@ -223,8 +223,16 @@ pd_unconstr.plot()
 # Both models have a very similar shape of partial dependence
 
 #%%
+pdp = constr_exp.model_profile()
+pdp.plot()
+
+#%%
 # Exercise 5
 
 # Use SHAP to explain the prediction of a given observation
-constr_exp.predict_parts(X_test_transformed.iloc[0], type='shap')
-unconstr_exp.predict_parts(X_test_transformed.iloc[0], type='shap')
+constr_shap_0 = constr_exp.predict_parts(X_test_transformed.iloc[0], type='shap', N=10000, B=25)
+constr_shap_0.plot()
+
+#%%
+unconstr_shap_0 = unconstr_exp.predict_parts(X_test_transformed.iloc[0], type='shap', N=10000, B=25)
+unconstr_shap_0.plot()
